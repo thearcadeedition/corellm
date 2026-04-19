@@ -3,119 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Perfect AI | Expert Collaborator</title>
+    <title>Perfect AI</title>
     <style>
         :root {
-            --bg: #0a0a0a;
-            --surface: #171717;
-            --border: #262626;
-            --text-main: #ededed;
-            --text-muted: #a1a1a1;
-            --accent: #10b981; /* Emerald Green */
-            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --sidebar-bg: #000000;
+            --main-bg: #212121;
+            --text-main: #ececec;
+            --text-secondary: #b4b4b4;
+            --input-bg: #2f2f2f;
+            --accent-green: #10a37f; /* The iconic ChatGPT green */
+            --font-main: 'Sentry', 'Inter', system-ui, -apple-system, sans-serif;
         }
 
         body {
-            margin: 0; background-color: var(--bg); color: var(--text-main);
-            font-family: var(--font-main); display: flex; flex-direction: column;
-            height: 100vh; -webkit-font-smoothing: antialiased;
+            margin: 0; background-color: var(--main-bg); color: var(--text-main);
+            font-family: var(--font-main); display: flex; height: 100vh;
         }
 
-        /* Loading State */
+        /* Sidebar - ChatGPT Style */
+        #sidebar {
+            width: 260px; background-color: var(--sidebar-bg);
+            display: flex; flex-direction: column; padding: 12px;
+            box-sizing: border-box; border-right: 1px solid #333;
+        }
+        .new-chat-btn {
+            border: 1px solid #4d4d4d; border-radius: 6px; padding: 10px;
+            font-size: 14px; cursor: pointer; display: flex; align-items: center;
+            gap: 10px; transition: 0.2s; color: white;
+        }
+        .new-chat-btn:hover { background: #2b2b2b; }
+
+        /* Main Chat Area */
+        main {
+            flex: 1; display: flex; flex-direction: column; position: relative;
+        }
+
+        /* Loading Overlay */
         #loader {
-            position: fixed; inset: 0; background: var(--bg);
+            position: absolute; inset: 0; background: var(--main-bg);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 1000; transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000; transition: opacity 0.5s;
         }
-        .loader-content { width: 280px; text-align: center; }
-        .progress-track { width: 100%; height: 2px; background: var(--border); margin: 24px 0; border-radius: 2px; overflow: hidden; }
-        #progress-bar { width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease; }
-        #loader-text { font-size: 13px; font-weight: 500; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; }
-
-        /* Layout */
-        header {
-            padding: 20px 40px; border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center; background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(8px);
-        }
-        header h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.05em; margin: 0; color: var(--text-muted); }
+        .loader-content { width: 300px; text-align: center; }
+        .progress-track { width: 100%; height: 4px; background: #333; border-radius: 2px; margin: 20px 0; overflow: hidden; }
+        #progress-bar { width: 0%; height: 100%; background: var(--accent-green); transition: width 0.3s; }
 
         #chat-container {
-            flex: 1; overflow-y: auto; display: flex; flex-direction: column;
-            padding: 40px 20px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box;
+            flex: 1; overflow-y: auto; display: flex; flex-direction: column; width: 100%;
         }
 
-        .message { margin-bottom: 32px; line-height: 1.6; font-size: 15px; max-width: 100%; animation: fadeIn 0.4s ease; }
-        .role-label { font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em; }
-        .user .role-label { color: var(--text-muted); }
-        .ai .role-label { color: var(--accent); }
-        
-        .content { color: var(--text-main); white-space: pre-wrap; }
+        /* Message Bubbles */
+        .message-row {
+            padding: 24px 10%; display: flex; gap: 20px; width: 100%; box-sizing: border-box;
+        }
+        .message-row.ai { background-color: #212121; }
+        .message-row.user { background-color: #212121; }
 
-        /* Input Area */
+        .avatar {
+            width: 30px; height: 30px; border-radius: 2px; display: flex;
+            align-items: center; justify-content: center; flex-shrink: 0;
+            font-size: 12px; font-weight: bold;
+        }
+        .user .avatar { background: #5436da; content: "U"; }
+        .ai .avatar { background: var(--accent-green); content: "P"; }
+
+        .content {
+            font-size: 16px; line-height: 1.6; white-space: pre-wrap; flex: 1;
+        }
+
+        /* Input Pill Box */
         footer {
-            padding: 24px 40px 40px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box;
+            padding: 20px 0 40px; display: flex; justify-content: center; background: transparent;
         }
-        .input-wrapper {
-            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-            padding: 8px 16px; display: flex; align-items: center; transition: border-color 0.2s;
+        .input-pill {
+            width: 80%; max-width: 768px; background: var(--input-bg);
+            border-radius: 12px; padding: 10px 15px; display: flex;
+            align-items: center; border: 1px solid #4d4d4d;
         }
-        .input-wrapper:focus-within { border-color: var(--accent); }
         input {
-            flex: 1; background: transparent; border: none; color: var(--text-main);
-            padding: 12px; font-size: 15px; outline: none; font-family: inherit;
+            flex: 1; background: transparent; border: none; color: white;
+            padding: 10px; font-size: 16px; outline: none;
         }
-        button {
-            background: transparent; border: none; color: var(--accent);
-            font-weight: 600; font-size: 13px; cursor: pointer; padding: 8px 16px;
-            text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; transition: 0.2s;
+        #send-btn {
+            background: var(--accent-green); color: white; border: none;
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;
         }
-        button:hover { opacity: 1; }
-        button:disabled { color: var(--text-muted); cursor: not-allowed; }
+        #send-btn:disabled { background: #494949; cursor: not-allowed; }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <div id="loader">
-        <div class="loader-content">
-            <div id="loader-text">Initializing Model</div>
-            <div class="progress-track"><div id="progress-bar"></div></div>
-            <p style="font-size: 12px; color: var(--text-muted);">Syncing 1.6GB Neural Architecture</p>
-        </div>
+    <div id="sidebar">
+        <div class="new-chat-btn"><span>+</span> New Chat</div>
+        <div style="margin-top: auto; color: #8e8e93; font-size: 12px; padding: 10px;">Perfect AI v1.0</div>
     </div>
 
-    <header>
-        <h1>PERFECT AI / v1.0</h1>
-        <div id="connection-status" style="font-size: 11px; color: var(--accent);">● LOCAL ENGINE ACTIVE</div>
-    </header>
-
-    <div id="chat-container">
-        <div class="message ai">
-            <div class="role-label">Perfect AI</div>
-            <div class="content">I am initialized and ready to collaborate. How may I assist your current task?</div>
+    <main>
+        <div id="loader">
+            <div class="loader-content">
+                <div style="font-size: 24px; margin-bottom: 10px;">Perfect AI</div>
+                <div class="progress-track"><div id="progress-bar"></div></div>
+                <div id="loader-text" style="font-size: 14px; color: var(--text-secondary);">Downloading Local Neural Network (1.6GB)</div>
+            </div>
         </div>
-    </div>
 
-    <footer>
-        <div class="input-wrapper">
-            <input type="text" id="user-input" placeholder="Enter your query..." disabled>
-            <button id="send-btn" disabled>Process</button>
-        </div>
-    </footer>
+        <div id="chat-container">
+            </div>
+
+        <footer>
+            <div class="input-pill">
+                <input type="text" id="user-input" placeholder="Message Perfect AI..." disabled>
+                <button id="send-btn" disabled>↑</button>
+            </div>
+        </footer>
+    </main>
 
     <script type="module">
         import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
-        const SYSTEM_BEHAVIOR = "You are an expert collaborator. Your intelligence is vast but your ego is non-existent. You are kind, helpful, and composed. You never use sarcasm or wit. Your goal is to be the most useful and grounded presence in the user's digital life. Speak directly and sincerely.";
+        const SYSTEM_BEHAVIOR = "You are Perfect AI, an expert collaborator. Your intelligence is vast but your ego is non-existent. You are kind, helpful, and composed. You never use sarcasm or wit. Your goal is to be the most useful and grounded presence in the user's digital life. Speak directly and sincerely.";
 
         const chatContainer = document.getElementById("chat-container");
         const input = document.getElementById("user-input");
         const btn = document.getElementById("send-btn");
         const progressBar = document.getElementById("progress-bar");
-        const loaderText = document.getElementById("loader-text");
         const loader = document.getElementById("loader");
 
         const chatHistory = [{ role: "system", content: SYSTEM_BEHAVIOR }];
@@ -124,19 +137,20 @@
         engine.setInitProgressCallback((report) => {
             const p = Math.round(report.progress * 100);
             progressBar.style.width = p + "%";
-            loaderText.innerText = `Loading Assets: ${p}%`;
         });
 
         async function init() {
             try {
                 await engine.reload("gemma-2b-it-q4f32_1-MLC");
                 loader.style.opacity = "0";
-                setTimeout(() => loader.style.display = "none", 600);
+                setTimeout(() => loader.style.display = "none", 500);
                 input.disabled = false;
                 btn.disabled = false;
+                
+                // Initial AI Greeting
+                appendMessage("I have initialized my local engine. How can I assist you today?", 'ai', 'P');
             } catch (e) {
-                loaderText.innerText = "WebGPU Error";
-                loaderText.style.color = "#ef4444";
+                console.error(e);
             }
         }
 
@@ -144,17 +158,17 @@
             const text = input.value.trim();
             if (!text) return;
 
-            appendMessage(text, 'user', 'User');
+            appendMessage(text, 'user', 'U');
             chatHistory.push({ role: "user", content: text });
             input.value = "";
 
-            const aiDiv = appendMessage("...", 'ai', 'Perfect AI');
-            const aiContent = aiDiv.querySelector('.content');
+            const aiRow = appendMessage("...", 'ai', 'P');
+            const aiContent = aiRow.querySelector('.content');
 
             try {
                 const chunks = await engine.chat.completions.create({
                     messages: chatHistory,
-                    temperature: 0.4, // Lower temperature for more direct, less "witty" answers
+                    temperature: 0.4,
                     stream: true,
                 });
 
@@ -166,17 +180,20 @@
                 }
                 chatHistory.push({ role: "assistant", content: fullResponse });
             } catch (err) {
-                aiContent.innerText = "An error occurred during processing.";
+                aiContent.innerText = "Error: Check your connection or WebGPU support.";
             }
         }
 
-        function appendMessage(text, className, label) {
-            const div = document.createElement("div");
-            div.className = `message ${className}`;
-            div.innerHTML = `<div class="role-label">${label}</div><div class="content">${text}</div>`;
-            chatContainer.appendChild(div);
+        function appendMessage(text, className, avatarChar) {
+            const row = document.createElement("div");
+            row.className = `message-row ${className}`;
+            row.innerHTML = `
+                <div class="avatar">${avatarChar}</div>
+                <div class="content">${text}</div>
+            `;
+            chatContainer.appendChild(row);
             chatContainer.scrollTop = chatContainer.scrollHeight;
-            return div;
+            return row;
         }
 
         btn.onclick = handleSendMessage;
