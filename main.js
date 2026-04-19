@@ -1,22 +1,25 @@
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
 const SYSTEM_BEHAVIOR = "You are Core LLM, an independent expert. Be direct, clear, and optimistic.";
-const USER_LABEL = "You";
 
-// Initialize UI Structure
+// UPDATED: Added Logo path fix
+const LOGO_URL = "https://raw.githubusercontent.com/thearcadeedition/corellm/main/logo.png";
+
 document.getElementById('core-app-root').innerHTML = `
     <div id="app-root">
         <div id="sidebar">
+            <div class="logo-container">
+                <img src="${LOGO_URL}" alt="CORE" onerror="this.innerHTML='CORE';">
+            </div>
             <button class="new-chat-btn" id="new-chat-trigger">+ New Chat</button>
-            <div class="sidebar-header">Saved Chats</div>
             <div id="chat-list"></div>
         </div>
         <main>
             <div id="chat-container"></div>
             <footer>
                 <div class="input-pill">
-                    <input type="text" id="user-input" placeholder="Ask something..." disabled>
-                    <button id="send-btn" disabled>Send</button>
+                    <input type="text" id="user-input" placeholder="Ask something..." autofocus>
+                    <button id="send-btn">Send</button>
                 </div>
             </footer>
         </main>
@@ -26,89 +29,60 @@ document.getElementById('core-app-root').innerHTML = `
 const chatContainer = document.getElementById("chat-container");
 const input = document.getElementById("user-input");
 const btn = document.getElementById("send-btn");
-const chatListEl = document.getElementById("chat-list");
 
 let engine = new webllm.MLCEngine();
-let currentChatId = null;
-let allChats = JSON.parse(localStorage.getItem('core_llm_chats')) || [];
-
-function saveToStorage() {
-    localStorage.setItem('core_llm_chats', JSON.stringify(allChats));
-    renderSidebar();
-}
-
-function renderSidebar() {
-    chatListEl.innerHTML = '';
-    allChats.forEach((chat) => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'chat-item-wrapper';
-        const div = document.createElement('div');
-        div.className = `chat-item ${currentChatId === chat.id ? 'active' : ''}`;
-        div.innerText = chat.title || "New Thread";
-        div.onclick = () => loadChat(chat.id);
-        wrapper.appendChild(div);
-        chatListEl.appendChild(wrapper);
-    });
-}
-
-function loadChat(id) {
-    currentChatId = id;
-    const chat = allChats.find(c => c.id === id);
-    chatContainer.innerHTML = '';
-    chat.messages.forEach(m => {
-        if(m.role !== 'system') appendMessage(m.content, m.role === 'user' ? 'user' : 'ai');
-    });
-    renderSidebar();
-}
-
-function startNewChat() {
-    const newId = Date.now();
-    const newChat = { id: newId, title: "New conversation", messages: [{ role: "system", content: SYSTEM_BEHAVIOR }] };
-    allChats.unshift(newChat);
-    currentChatId = newId;
-    saveToStorage();
-    loadChat(newId);
-    appendMessage("Core LLM is ready. What's on your mind?", 'ai');
-}
+let chatHistory = [{ role: "system", content: SYSTEM_BEHAVIOR }];
 
 async function init() {
     try {
         await engine.reload("gemma-2b-it-q4f32_1-MLC");
-        input.disabled = false;
-        btn.disabled = false;
-        if (allChats.length > 0) loadChat(allChats[0].id);
-        else startNewChat();
-    } catch (e) { console.error("WebGPU Init Failed", e); }
+        appendMessage("Core LLM is ready. What's on your mind?", 'ai');
+    } catch (e) {
+        appendMessage("WebGPU error. Please use a supported browser.", 'ai');
+    }
 }
 
-function appendMessage(text, className) {
+function appendMessage(text, role) {
     const row = document.createElement("div");
-    row.className = `message-row ${className}`;
-    const label = (className === 'user') ? USER_LABEL : 'C';
-    row.innerHTML = `<div class="avatar">${label}</div><div style="flex:1;">${text}</div>`;
+    row.className = `message-row ${role === 'user' ? 'user' : 'ai'}`;
+    const color = role === 'user' ? '#5436da' : '#10a37f';
+    const label = role === 'user' ? 'You' : 'C';
+    
+    row.innerHTML = `
+        <div class="avatar" style="background:${color}">${label}</div>
+        <div style="flex:1; line-height:1.5;">${text}</div>
+    `;
     chatContainer.appendChild(row);
     chatContainer.scrollTop = chatContainer.scrollHeight;
     return row;
 }
 
-btn.onclick = async () => {
+async function handleSend() {
     const text = input.value.trim();
     if (!text) return;
-    const chat = allChats.find(c => c.id === currentChatId);
+    
     appendMessage(text, 'user');
-    chat.messages.push({ role: "user", content: text });
+    chatHistory.push({ role: "user", content: text });
     input.value = "";
+
     const aiRow = appendMessage("...", 'ai');
-    const chunks = await engine.chat.completions.create({ messages: chat.messages, stream: true });
+    const chunks = await engine.chat.completions.create({ messages: chatHistory, stream: true });
+    
     let reply = "";
     for await (const chunk of chunks) {
         reply += chunk.choices[0]?.delta?.content || "";
-        aiRow.lastChild.innerText = reply;
+        aiRow.querySelector('div:last-child').innerText = reply;
+        chatContainer.scrollTop = chatContainer.scrollHeight;
     }
-    chat.messages.push({ role: "assistant", content: reply });
-    saveToStorage();
+    chatHistory.push({ role: "assistant", content: reply });
+}
+
+btn.onclick = handleSend;
+input.onkeypress = (e) => { if(e.key === 'Enter') handleSend(); };
+document.getElementById("new-chat-trigger").onclick = () => {
+    chatContainer.innerHTML = "";
+    chatHistory = [{ role: "system", content: SYSTEM_BEHAVIOR }];
+    appendMessage("Core LLM is ready. What's on your mind?", 'ai');
 };
 
-document.getElementById("new-chat-trigger").onclick = startNewChat;
 init();
-renderSidebar();
