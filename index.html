@@ -19,7 +19,7 @@
 
         /* Sidebar */
         #sidebar { width: 260px; background-color: var(--sidebar-bg); display: flex; flex-direction: column; padding: 12px; border-right: 1px solid #333; flex-shrink: 0; }
-        .logo-box { width: 50px; height: 50px; margin: 10px auto; display: flex; align-items: center; justify-content: center; }
+        .logo-box { width: 55px; height: 55px; margin: 10px auto; display: flex; align-items: center; justify-content: center; }
         .logo-box img { width: 100%; height: auto; filter: invert(1); }
 
         .sidebar-header { font-size: 11px; color: #666; margin: 15px 5px 5px; text-transform: uppercase; letter-spacing: 1px; }
@@ -40,16 +40,21 @@
         #progress-bar { width: 0%; height: 100%; background: var(--accent-emerald); transition: width 0.3s; }
 
         #chat-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; width: 100%; padding-bottom: 50px; }
-        .message-row { padding: 24px 10%; display: flex; gap: 20px; width: 100%; box-sizing: border-box; }
-        .avatar { width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; font-weight: bold; color: white; }
-        .user .avatar { background: #5436da; } .ai .avatar { background: var(--accent-emerald); }
-        .content { font-size: 16px; line-height: 1.6; white-space: pre-wrap; flex: 1; }
+        .message-row { padding: 24px 12%; display: flex; gap: 20px; width: 100%; box-sizing: border-box; }
+        
+        /* Avatar Logic */
+        .avatar { min-width: 36px; height: 32px; padding: 0 8px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; font-weight: 600; color: white; }
+        .user .avatar { background: #5436da; } 
+        .ai .avatar { background: var(--accent-emerald); }
+        
+        .content { font-size: 16px; line-height: 1.6; white-space: pre-wrap; flex: 1; color: #d1d1d1; }
 
+        /* Input area */
         footer { padding: 20px 0 40px; display: flex; justify-content: center; }
-        .input-pill { width: 85%; max-width: 768px; background: var(--input-bg); border-radius: 14px; padding: 10px 18px; display: flex; align-items: center; border: 1px solid #4d4d4d; }
+        .input-pill { width: 85%; max-width: 768px; background: var(--input-bg); border-radius: 14px; padding: 10px 18px; display: flex; align-items: center; border: 1px solid #4d4d4d; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
         input { flex: 1; background: transparent; border: none; color: white; padding: 12px; font-size: 16px; outline: none; }
         #send-btn { background: var(--accent-emerald); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
-        #send-btn:disabled { opacity: 0.5; }
+        #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -64,16 +69,17 @@
 
     <main>
         <div id="loader">
-            <h2 style="font-weight: 600; margin-bottom: 5px;">Core LLM</h2>
-            <div id="loader-text" style="font-size: 13px; color: var(--text-secondary);">Optimizing storage...</div>
+            <h2 style="font-weight: 600; margin-bottom: 5px; letter-spacing: 1px;">CORE LLM</h2>
+            <div id="loader-text" style="font-size: 13px; color: var(--text-secondary);">Optimizing local brain...</div>
             <div class="progress-track"><div id="progress-bar"></div></div>
+            <div style="font-size: 11px; color: #555;">Loading 1.6GB Assets</div>
         </div>
 
         <div id="chat-container"></div>
 
         <footer>
             <div class="input-pill">
-                <input type="text" id="user-input" placeholder="Type something..." disabled>
+                <input type="text" id="user-input" placeholder="Ask something..." disabled>
                 <button id="send-btn" disabled>Send</button>
             </div>
         </footer>
@@ -82,7 +88,9 @@
     <script type="module">
         import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
-        const SYSTEM_BEHAVIOR = "You are Core LLM, an independent expert. Be direct, clear, and optimistic. Talk like a capable peer.";
+        const SYSTEM_BEHAVIOR = "You are Core LLM, an independent expert. Be direct, clear, and optimistic. Provide high-utility answers. Talk like a smart, capable peer. No sycophancy.";
+        const USER_LABEL = "You";
+        
         const chatContainer = document.getElementById("chat-container");
         const input = document.getElementById("user-input");
         const btn = document.getElementById("send-btn");
@@ -94,7 +102,6 @@
         let currentChatId = null;
         let allChats = JSON.parse(localStorage.getItem('core_llm_chats')) || [];
 
-        // Logic for Persistent Chats
         function saveToStorage() {
             localStorage.setItem('core_llm_chats', JSON.stringify(allChats));
             renderSidebar();
@@ -102,10 +109,10 @@
 
         function renderSidebar() {
             chatListEl.innerHTML = '';
-            allChats.forEach((chat, index) => {
+            allChats.forEach((chat) => {
                 const div = document.createElement('div');
                 div.className = `chat-item ${currentChatId === chat.id ? 'active' : ''}`;
-                div.innerText = chat.title || `Chat ${index + 1}`;
+                div.innerText = chat.title || "New Thread";
                 div.onclick = () => loadChat(chat.id);
                 chatListEl.appendChild(div);
             });
@@ -116,14 +123,16 @@
             const chat = allChats.find(c => c.id === id);
             chatContainer.innerHTML = '';
             chat.messages.forEach(m => {
-                if(m.role !== 'system') appendMessage(m.content, m.role === 'user' ? 'user' : 'ai', m.role === 'user' ? 'U' : 'C');
+                if(m.role !== 'system') {
+                    appendMessage(m.content, m.role === 'user' ? 'user' : 'ai');
+                }
             });
             renderSidebar();
         }
 
         function startNewChat() {
             if (allChats.length >= 10) {
-                alert("Maximum of 10 chats reached. Please delete some (Coming soon) or clear storage.");
+                alert("Limit reached. Please refresh or clear storage to start new threads.");
                 return;
             }
             const newId = Date.now();
@@ -132,11 +141,11 @@
                 title: "New conversation",
                 messages: [{ role: "system", content: SYSTEM_BEHAVIOR }]
             };
-            allChats.unshift(newChat); // Add to top
+            allChats.unshift(newChat);
             currentChatId = newId;
             saveToStorage();
             loadChat(newId);
-            appendMessage("Core LLM is ready. What's on your mind?", 'ai', 'C');
+            appendMessage("Core LLM is ready. What's on your mind?", 'ai');
         }
 
         engine.setInitProgressCallback((report) => {
@@ -153,7 +162,7 @@
                 
                 if (allChats.length > 0) loadChat(allChats[0].id);
                 else startNewChat();
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("WebGPU Initialization Failed", e); }
         }
 
         async function handleSendMessage() {
@@ -161,18 +170,22 @@
             if (!text) return;
 
             const chat = allChats.find(c => c.id === currentChatId);
-            if(chat.messages.length === 1) chat.title = text.substring(0, 20) + "..."; // Auto-title
+            if(chat.messages.length <= 2) chat.title = text.substring(0, 24);
 
-            appendMessage(text, 'user', 'U');
+            appendMessage(text, 'user');
             chat.messages.push({ role: "user", content: text });
             input.value = "";
             saveToStorage();
 
-            const aiRow = appendMessage("...", 'ai', 'C');
+            const aiRow = appendMessage("...", 'ai');
             const aiContent = aiRow.querySelector('.content');
 
             try {
-                const chunks = await engine.chat.completions.create({ messages: chat.messages, temperature: 0.5, stream: true });
+                const chunks = await engine.chat.completions.create({ 
+                    messages: chat.messages, 
+                    temperature: 0.5, 
+                    stream: true 
+                });
                 let reply = "";
                 for await (const chunk of chunks) {
                     reply += chunk.choices[0]?.delta?.content || "";
@@ -181,13 +194,18 @@
                 }
                 chat.messages.push({ role: "assistant", content: reply });
                 saveToStorage();
-            } catch (err) { console.error(err); }
+            } catch (err) { aiContent.innerText = "Error. Please check connection."; }
         }
 
-        function appendMessage(text, className, avatarChar) {
+        function appendMessage(text, className) {
             const row = document.createElement("div");
             row.className = `message-row ${className}`;
-            row.innerHTML = `<div class="avatar">${avatarChar}</div><div class="content">${text}</div>`;
+            const label = (className === 'user') ? USER_LABEL : 'C';
+            
+            row.innerHTML = `
+                <div class="avatar">${label}</div>
+                <div class="content">${text}</div>
+            `;
             chatContainer.appendChild(row);
             chatContainer.scrollTop = chatContainer.scrollHeight;
             return row;
